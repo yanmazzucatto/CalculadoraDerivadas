@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Calculadora de Cálculo</title>
+  <link rel="stylesheet" href="./style/style.css">
+</head>
+<body>
+  <div class="calculator-container">
+    <div class="calculator-header">
+      <h1>Calculadora de Derivadas</h1>
+    </div>
+
+    <div class="mode-buttons">
+      <button id="btn-derivada">Derivada</button>
+      <button id="btn-integral">Integral</button>
+      <button id="btn-extremos">Máx/Mín</button>
+    </div>
+
+    <div class="input-section">
+      <label for="funcao">Digite a função:</label>
+      <input type="text" id="funcao" placeholder="Ex: x^2 + 3x - 5" />
+    </div>  
+    <div class="result-section" id="resultado">
+      <p id="resultado">Resultado aparecerá aqui.</p>
+    </div>
+  </div>
+  <script src="./scripts/derivada.js"></script>
+</body>
+</html>
+<!--
+O codigo sera dividido em Duas Partes:
+Derivada:
+Primeiro passo -> Identificar se a função é valida;
+Segundo passo -> Realizar a derivada de pirmeiro grau;
+Através disso teremos o Ponto Critico;
+
+Integral: A integral terá 
+
+
+Estruturacao IA:
+1. Definir o objetivo
+Calcular derivadas e integrais de funções matemáticas fornecidas pelo usuário.
+
+Pode ser funções polinomiais, exponenciais, trigonométricas, etc.?
+
+Os resultados devem ser simbólicos (ex: d/dx(x^2) = 2x) ou apenas numéricos (ex: ∫x² dx de 0 a 1 = 1/3)?
+
+2. Entrada de dados
+Como o usuário fornecerá a função? String ("x^2 + sin(x)")? Interface gráfica?
+
+Será necessário validar e interpretar a função inserida.
+
+3. Parser (Analisador de funções)
+Transformar a entrada em uma estrutura compreensível pelo programa (ex: árvore sintática ou objeto de função).
+
+Lidar com expressões como 3x^2, sin(x), ln(x) etc.
+
+Avaliar se usará bibliotecas como SymPy (Python) ou implementará um parser manual.
+
+4. Cálculo de derivadas e integrais
+Implementar ou usar métodos já existentes para:
+
+Derivadas: regras de potência, produto, cadeia, etc.
+
+Integrais: simbólicas (se possível) ou numéricas (ex: método dos trapézios, Simpson).
+
+Decidir se suporta apenas derivadas/integral indefinida, ou também definida (com limites).
+
+5. Formatação e exibição dos resultados
+Como os resultados serão exibidos? Texto simples? Notação matemática?
+
+Exibir passo a passo (opcional)?
+
+Arredondar ou simplificar resultados?
+
+6. Interface com o usuário
+Terminal, web, app?
+
+Precisa de botões como “Calcular derivada”, “Calcular integral”?
+
+Campo para inserir função, escolher variável, escolher limites (para integrais definidas).
+
+7. Tratamento de erros
+Entrada inválida (ex: x///+2)
+
+Derivadas/integral de funções não permitidas
+
+Limites inválidos para integrais definidas
+
+8. Testes
+Criar um conjunto de funções para testar todos os tipos de entrada
+
+Verificar se o retorno está correto
+
+Garantir estabilidade para casos extremos
+
+9. Escalabilidade e melhorias
+Suporte a múltiplas variáveis (f(x, y))
+
+Derivadas parciais
+
+Integrais duplas
+
+Exportação de resultados
+-->

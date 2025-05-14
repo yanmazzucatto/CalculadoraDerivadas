@@ -1,0 +1,17 @@
+{
+  "name": "calculadoraderivadas",
+  "version": "1.0.0",
+  "description": "The goal with this project is realized a calculator's software for derivative, integral, max and min points.",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.1.0",
+    "mathjs": "^14.4.0",
+    "path": "^0.12.7"
+  }
+}
