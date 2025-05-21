@@ -1,75 +1,81 @@
-// Função principal chamada ao clicar no botão
 function calcularDerivada() {
-  const input = document.getElementById("funcao").value; // Pega o valor digitado
-  const funcaoSeparada = separaFuncao(input); // Separa nome e corpo da função
-  const termos = separarTermos(funcaoSeparada.valor); // Separa os termos
-  const termosDerivados = termos.map(derivarTermo); // Aplica derivação termo a termo
-  const resposta = termosDerivados.join(' + ').replace(/\+\s\-/g, '- '); // Junta resultado e corrige sinais
+  const input = document.getElementById("funcao").value.trim()
+  const resultado = document.getElementById("resultado")
 
-  document.getElementById("resultado").innerText = `${funcaoSeparada.nome}' = ${resposta}`;
+  try {
+    if (!input.includes('=') || !input.match(/^[a-zA-Z]+\([a-zA-Z]+\)\s*=\s*.+$/)) { 
+      throw new Error("Isso aí não é função. Tente algo como f(x) = x^2 + 2x - 4")
+    }
+
+    const funcaoSeparada = separaFuncao(input)
+    const termos = separarTermos(funcaoSeparada.valor)
+    const termosDerivados = termos.map(derivarTermo)
+
+    const resposta = termosDerivados.join(' + ').replace(/\+\s\-/g, '- ')
+    resultado.innerText = `${funcaoSeparada.nome}' = ${resposta}`
+  } catch (erro) {
+    alert(erro.message)
+    resultado.innerText = ''
+    document.getElementById("funcao").value = ''
+  }
 }
 
-// Separa o nome da função e o conteúdo (ex: "f(x) = x^2 + 2x - 4")
 function separaFuncao(input) {
-  const partes = input.split('=');
-  const nome = partes[0].trim();      // "f(x)"
-  const valor = partes[1].trim();     // "x^2 + 2x - 4"
-  return { nome, valor };
+  const partes = input.split('=')
+  const nome = partes[0].trim()
+  const valor = partes[1].trim()
+  return { nome, valor }
 }
 
-// Separa os termos com base nos sinais + e - (sem regex)
 function separarTermos(funcao) {
-  let termos = [];
-  let termoAtual = '';
+  let termos = []
+  let termoAtual = ''
 
   for (let i = 0; i < funcao.length; i++) {
-    const c = funcao[i];
+    const c = funcao[i]
 
-    // Se for um operador, salva o termo anterior e começa um novo
     if ((c === '+' || c === '-') && i !== 0) {
-      termos.push(termoAtual.trim());
-      termoAtual = c; // começa novo termo com o sinal
-    } else {
-      termoAtual += c;
+      termos.push(termoAtual.trim())
+      termoAtual = c
+      termoAtual += c
     }
   }
 
-  termos.push(termoAtual.trim()); // adiciona o último termo
-  return termos;
+  termos.push(termoAtual.trim())
+  return termos
 }
 
-// Deriva um único termo como: "x^2", "2x", "-4", "cos(x)"
+// Deriva termos como x^n, ax, constantes, sin, cos, etc.
 function derivarTermo(termo) {
-  termo = termo.trim();
+  termo = termo.trim()
 
-  // Casos básicos de funções trigonométricas
-  if (termo.includes('cos(x)')) return termo.replace('cos(x)', '-sin(x)');
-  if (termo.includes('sin(x)')) return termo.replace('sin(x)', 'cos(x)');
-  if (termo.includes('tan(x)')) return termo.replace('tan(x)', 'sec^2(x)');
+  // Derivadas trigonométricas
+  if (termo.includes('cos(x)')) return termo.replace('cos(x)', '-sin(x)')
+  if (termo.includes('sin(x)')) return termo.replace('sin(x)', 'cos(x)')
+  if (termo.includes('tan(x)')) return termo.replace('tan(x)', 'sec^2(x)')
 
-  // Derivada de constante (número isolado) é zero
+  // Constante
   if (!termo.includes('x')) return '0';
 
-  // Derivada de x^n: exemplo x^2 => 2x
+  // Potência: x^n
   if (termo.includes('x^')) {
-    const partes = termo.split('x^');
-    let coef = partes[0] === '' || partes[0] === '+' ? 1 : (partes[0] === '-' ? -1 : Number(partes[0]));
-    const expoente = Number(partes[1]);
-    const novoCoef = coef * expoente;
-    const novoExpoente = expoente - 1;
+    const partes = termo.split('x^')
+    let coef = partes[0] === '' || partes[0] === '+' ? 1 : (partes[0] === '-' ? -1 : Number(partes[0]))
+    const expoente = Number(partes[1])
+    const novoCoef = coef * expoente
+    const novoExpoente = expoente - 1
 
-    if (novoExpoente === 1) return `${novoCoef}x`;
-    if (novoExpoente === 0) return `${novoCoef}`;
-    return `${novoCoef}x^${novoExpoente}`;
+    if (novoExpoente === 1) return `${novoCoef}x`
+    if (novoExpoente === 0) return `${novoCoef}`
+    return `${novoCoef}x^${novoExpoente}`
   }
 
-  // Derivada de ax (ex: 2x -> 2)
+  // Termos do tipo ax
   if (termo.includes('x')) {
-    let coef = termo.replace('x', '');
-    coef = coef === '' || coef === '+' ? 1 : (coef === '-' ? -1 : Number(coef));
-    return `${coef}`;
+    let coef = termo.replace('x', '')
+    coef = coef === '' || coef === '+' ? 1 : (coef === '-' ? -1 : Number(coef))
+    return `${coef}`
   }
 
-  // Caso não reconhecido
   return '?';
 }
