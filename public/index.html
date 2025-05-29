@@ -13,7 +13,7 @@
     </div>
 
     <div class="mode-buttons">
-      <button id="btn-derivada" onclick="calcularDerivada()">Derivada</button>
+      <button id="btn-derivada">Derivada</button>
       <button id="btn-integral">Integral</button>
       <button id="btn-extremos">Máx/Mín</button>
     </div>
@@ -22,10 +22,11 @@
       <label for="funcao">Digite a função:</label>
       <input type="text" id="funcao" placeholder="Ex: x^2 + 3x - 5" />
     </div>  
-    <div class="result-section" id="resultado">
+    <div class="result-section" id="resultado-container">
       <p id="resultado">Resultado aparecerá aqui.</p>
     </div>
   </div>
-  <script src="./scripts/derivada.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/14.2.1/math.min.js"></script>
+  <script src="scripts/derivada.js"></script>
 </body>
 </html>
