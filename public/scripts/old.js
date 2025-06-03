@@ -1,81 +1,122 @@
-function calcularDerivada() {
-  const input = document.getElementById("funcao").value.trim()
-  const resultado = document.getElementById("resultado")
+const btnDerivada = document.getElementById("btn-derivada")
+const btnIntegral = document.getElementById("btn-integral")
 
-  try {
-    if (!input.includes('=') || !input.match(/^[a-zA-Z]+\([a-zA-Z]+\)\s*=\s*.+$/)) { 
-      throw new Error("Isso aí não é função. Tente algo como f(x) = x^2 + 2x - 4")
+//EventListeners
+btnDerivada.addEventListener("click", () => {
+    const inputFuncao = document.getElementById("funcao").value
+    if (validaFuncao(inputFuncao)) {
+        const { valor } = separaFuncao(inputFuncao)
+        derivada(valor)
+    }
+})
+
+btnIntegral.addEventListener("click", () => {
+    const inputFuncao = document.getElementById("funcao").value
+    if (validaFuncao(inputFuncao)) {
+        const { valor } = separaFuncao(inputFuncao)
+        integral(valor)
+        console.log('Foi')
+    }
+})
+
+function limpaFuncao() {
+    const inputElemento = document.getElementById("funcao")
+    const areaResposta = document.getElementById("resultado")
+    inputElemento.value = ""
+    areaResposta.innerHTML = "Função inválida. Tente novamente!"
+}
+
+function separaFuncao(funcaoCompleta) {
+    if (funcaoCompleta.includes('=')) {
+        const [nome, valor] = funcaoCompleta.split('=')
+        return {
+            nome: nome.trim(),
+            valor: valor.trim()
+        }
+    } else {
+        return {
+            nome: '',
+            valor: funcaoCompleta.trim()
+        }
+    }
+}
+
+function normalizaFuncao(funcao) {
+    return funcao
+        .replace(/x⁰/g, 'x^0')
+        .replace(/x¹/g, 'x^1')
+        .replace(/x²/g, 'x^2')
+        .replace(/x³/g, 'x^3')
+        .replace(/x⁴/g, 'x^4')
+        .replace(/x⁵/g, 'x^5')
+        .replace(/x⁶/g, 'x^6')
+        .replace(/x⁷/g, 'x^7')
+        .replace(/x⁸/g, 'x^8')
+        .replace(/x⁹/g, 'x^9')
+        .replace(/ln\(/g, 'log(')
+        .replace(/tg\(/g, 'tan(')
+        .replace(/e\^/g, 'exp(')
+}
+
+function validaFuncao(inputFuncao) {
+    const { valor } = separaFuncao(inputFuncao)
+    const areaResposta = document.getElementById("resultado")
+
+    if (!valor) {
+        limpaFuncao()
+        return false
     }
 
-    const funcaoSeparada = separaFuncao(input)
-    const termos = separarTermos(funcaoSeparada.valor)
-    const termosDerivados = termos.map(derivarTermo)
-
-    const resposta = termosDerivados.join(' + ').replace(/\+\s\-/g, '- ')
-    resultado.innerText = `${funcaoSeparada.nome}' = ${resposta}`
-  } catch (erro) {
-    alert(erro.message)
-    resultado.innerText = ''
-    document.getElementById("funcao").value = ''
-  }
-}
-
-function separaFuncao(input) {
-  const partes = input.split('=')
-  const nome = partes[0].trim()
-  const valor = partes[1].trim()
-  return { nome, valor }
-}
-
-function separarTermos(funcao) {
-  let termos = []
-  let termoAtual = ''
-
-  for (let i = 0; i < funcao.length; i++) {
-    const c = funcao[i]
-
-    if ((c === '+' || c === '-') && i !== 0) {
-      termos.push(termoAtual.trim())
-      termoAtual = c
-      termoAtual += c
+    try {
+        const valorNormalizado = normalizaFuncao(valor)
+        math.parse(valorNormalizado)
+        areaResposta.innerHTML = ""
+        return true
+    } catch (e) {
+        limpaFuncao()
+        console.error("Erro de validação da função:", e)
+        return false
     }
-  }
-
-  termos.push(termoAtual.trim())
-  return termos
 }
 
-// Deriva termos como x^n, ax, constantes, sin, cos, etc.
-function derivarTermo(termo) {
-  termo = termo.trim()
+function derivada(expr) {
+    const areaResposta = document.getElementById("resultado")
 
-  // Derivadas trigonométricas
-  if (termo.includes('cos(x)')) return termo.replace('cos(x)', '-sin(x)')
-  if (termo.includes('sin(x)')) return termo.replace('sin(x)', 'cos(x)')
-  if (termo.includes('tan(x)')) return termo.replace('tan(x)', 'sec^2(x)')
+    try {
+        const exprNormalizada = normalizaFuncao(expr)
+        const node = math.parse(exprNormalizada)
+        const derivadaExpr = math.derivative(node, 'x')
+        const simplificada = math.simplify(derivadaExpr)
+        //const segunda_derivada = math.simplify(math.derivative())
+        areaResposta.innerHTML = `f': ${simplificada.toString()} <br>`
+    } catch (e) {
+        areaResposta.innerHTML = "Erro ao calcular a derivada. Verifique a sintaxe da função."
+        console.error("Erro ao calcular a derivada:", e)
+    }
+}
 
-  // Constante
-  if (!termo.includes('x')) return '0';
+function integral(expr) {
+ const areaResposta = document.getElementById("resultado")
 
-  // Potência: x^n
-  if (termo.includes('x^')) {
-    const partes = termo.split('x^')
-    let coef = partes[0] === '' || partes[0] === '+' ? 1 : (partes[0] === '-' ? -1 : Number(partes[0]))
-    const expoente = Number(partes[1])
-    const novoCoef = coef * expoente
-    const novoExpoente = expoente - 1
+    function integrar(f, a, b, n = 1000) {
+        const h = (b - a) / n;
+        let soma = 0.5 * (f(a) + f(b));
+        for (let i = 1; i < n; i++) {
+            soma += f(a + i * h);
+        }
+        return soma * h;
+    }
 
-    if (novoExpoente === 1) return `${novoCoef}x`
-    if (novoExpoente === 0) return `${novoCoef}`
-    return `${novoCoef}x^${novoExpoente}`
-  }
-
-  // Termos do tipo ax
-  if (termo.includes('x')) {
-    let coef = termo.replace('x', '')
-    coef = coef === '' || coef === '+' ? 1 : (coef === '-' ? -1 : Number(coef))
-    return `${coef}`
-  }
-
-  return '?';
+    try {
+        const exprNormalizada = normalizaFuncao(expr)
+        const node = math.parse(exprNormalizada)
+        const derivadaExpr = math.integral(node, 'x')
+        console.log(derivadaExpr);
+        // const simplificada = math.simplify(derivadaExpr)
+        //const segunda_derivada = math.simplify(math.derivative())
+        // areaResposta.innerHTML = `Derivada: ${simplificada.toString()}`
+    } catch (e) {
+        areaResposta.innerHTML = "Erro ao calcular a derivada. Verifique a sintaxe da função."
+        console.error("Erro ao calcular a derivada:", e)
+    }   
 }
