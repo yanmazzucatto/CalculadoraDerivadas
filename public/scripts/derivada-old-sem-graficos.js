@@ -117,16 +117,6 @@ function derivada(expr) {
     if (strDeriv1 === "0") {
       html += `<em>f′(x) ≡ 0 para todo x → sem pontos extremos distintos.</em>`
       areaResposta.innerHTML = html
-
-      // ── GRÁFICO: exibe somente f(x) (derivada constante)
-      desenhaGrafico({
-        exprs: [
-          x => math.evaluate(exprNormalizada, { x })
-        ],
-        cores: ["blue"],
-        labels: ["f(x)"],
-        titulo: "Função (derivada constante)"
-      })
       return
     }
     const f1 = x => {
@@ -179,19 +169,6 @@ function derivada(expr) {
       })
     }
     areaResposta.innerHTML = html
-
-    // ── GRÁFICO: exibe f(x), f′(x) e f″(x)
-    desenhaGrafico({
-      exprs: [
-        x => math.evaluate(exprNormalizada, { x }),
-        x => math.evaluate(strDeriv1, { x }),
-        x => math.evaluate(strDeriv2, { x })
-      ],
-      cores: ["blue", "green", "red"],
-      labels: ["f(x)", "f′(x)", "f″(x)"],
-      titulo: "Função e Derivadas"
-    })
-
   } catch (e) {
     const areaResposta = document.getElementById("resultado")
     areaResposta.innerHTML = "Erro ao calcular a derivada. Verifique a sintaxe da função"
@@ -208,22 +185,6 @@ function integralIndefinida(expr) {
       <strong>f(x) = ${exprNormalizada}</strong><br>
       ∫f(x)dx = ${resultadoAlgeb} + C
     `
-    // ── GRÁFICO: exibe f(x) e sua primitiva
-    const primitiva = x => {
-      try {
-        return math.evaluate(resultadoAlgeb, { x })
-      } catch {
-        return NaN
-      }
-    }
-    const fGraf = x => math.evaluate(exprNormalizada, { x })
-    desenhaGrafico({
-      exprs: [fGraf, primitiva],
-      cores: ["blue", "orange"],
-      labels: ["f(x)", "∫f(x)dx"],
-      titulo: "Função e Integral Indefinida"
-    })
-
   } catch (e) {
     areaResposta.innerHTML = "Erro ao calcular a integral indefinida. Verifique a sintaxe da função"
     console.error("Erro ao calcular a integral indefinida via Algebrite", e)
@@ -234,11 +195,11 @@ function integralDefinida(expr, a, b, n = 1000) {
   const areaResposta = document.getElementById("resultado")
   try {
     const exprNormalizada = normalizaFuncao(expr)
-    const fCalc = x => math.evaluate(exprNormalizada, { x })
+    const f = x => math.evaluate(exprNormalizada, { x })
     const h = (b - a) / n
-    let soma = 0.5 * (fCalc(a) + fCalc(b))
+    let soma = 0.5 * (f(a) + f(b))
     for (let i = 1; i < n; i++) {
-      soma += fCalc(a + i * h)
+      soma += f(a + i * h)
     }
     const resultado = soma * h
     areaResposta.innerHTML = `
@@ -247,71 +208,8 @@ function integralDefinida(expr, a, b, n = 1000) {
       Intervalo [${a}, ${b}]<br>
       ∫f(x)dx ≈ ${resultado.toFixed(6)}
     `
-    // ── GRÁFICO: exibe f(x) no intervalo dado
-    const fGraf = x => math.evaluate(exprNormalizada, { x })
-    desenhaGrafico({
-      exprs: [fGraf],
-      cores: ["purple"],
-      labels: ["f(x)"],
-      titulo: `Função no intervalo [${a}, ${b}]`
-    })
-
   } catch (e) {
     areaResposta.innerHTML = "Erro ao calcular a integral definida numérica. Verifique a função e os limites"
     console.error("Erro na integral definida", e)
   }
-}
-
-const ctxGrafico = document.getElementById("grafico").getContext("2d")
-let graficoAtual = null
-
-function desenhaGrafico({ exprs, cores, labels, titulo }) {
-  const xVals = []
-  const ySeries = exprs.map(() => [])
-  for (let x = -10; x <= 10; x += 0.1) {
-    xVals.push(x)
-    exprs.forEach((exprFn, i) => {
-      try {
-        ySeries[i].push(exprFn(x))
-      } catch {
-        ySeries[i].push(NaN)
-      }
-    })
-  }
-
-  if (graficoAtual) graficoAtual.destroy()
-  graficoAtual = new Chart(ctxGrafico, {
-    type: "line",
-    data: {
-      labels: xVals,
-      datasets: exprs.map((_, i) => ({
-        label: labels[i],
-        data: ySeries[i],
-        borderColor: cores[i],
-        borderWidth: 2,
-        fill: false,
-        pointRadius: 0
-      }))
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        title: {
-          display: true,
-          text: titulo
-        },
-        legend: {
-          position: 'top'
-        }
-      },
-      scales: {
-        x: {
-          title: { display: true, text: "x" }
-        },
-        y: {
-          title: { display: true, text: "y" }
-        }
-      }
-    }
-  })
 }
