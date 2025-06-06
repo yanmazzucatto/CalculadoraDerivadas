@@ -1,12 +1,15 @@
+// Elementos da interface
 const btnDerivada = document.getElementById("btn-derivada")
 const btnIntegralIndefinida = document.getElementById("btn-integral-indefinida")
 const btnIntegralDefinida = document.getElementById("btn-integral-definida")
 const limitesContainer = document.getElementById("limites-container")
 
+// Oculta os limites ao carregar
 document.addEventListener("DOMContentLoaded", () => {
   limitesContainer.classList.add("limites-hidden")
 })
 
+// Clique: derivada
 btnDerivada.addEventListener("click", () => {
   limitesContainer.classList.add("limites-hidden")
   const inputFuncao = document.getElementById("funcao").value
@@ -16,6 +19,7 @@ btnDerivada.addEventListener("click", () => {
   }
 })
 
+// Clique: integral indefinida
 btnIntegralIndefinida.addEventListener("click", () => {
   limitesContainer.classList.add("limites-hidden")
   const inputFuncao = document.getElementById("funcao").value
@@ -25,6 +29,7 @@ btnIntegralIndefinida.addEventListener("click", () => {
   }
 })
 
+// Clique: integral definida
 btnIntegralDefinida.addEventListener("click", () => {
   limitesContainer.classList.remove("limites-hidden")
   const inputFuncao = document.getElementById("funcao").value
@@ -40,6 +45,7 @@ btnIntegralDefinida.addEventListener("click", () => {
   }
 })
 
+// Funções auxiliares
 function limpaFuncao() {
   const inputElemento = document.getElementById("funcao")
   const areaResposta = document.getElementById("resultado")
@@ -84,6 +90,7 @@ function validaFuncao(inputFuncao) {
   const areaResposta = document.getElementById("resultado")
   if (!valor) {
     limpaFuncao()
+    esconderGrafico();
     return false
   }
   try {
@@ -96,6 +103,16 @@ function validaFuncao(inputFuncao) {
     console.error("Erro de validação da função", e)
     return false
   }
+}
+
+function mostrarGrafico() {
+  const graficoContainer = document.querySelector('.grafico-container');
+  graficoContainer.style.display = 'block';
+}
+
+function esconderGrafico() {
+  const graficoContainer = document.querySelector('.grafico-container');
+  graficoContainer.style.display = 'none';
 }
 
 function derivada(expr) {
@@ -117,38 +134,24 @@ function derivada(expr) {
     if (strDeriv1 === "0") {
       html += `<em>f′(x) ≡ 0 para todo x → sem pontos extremos distintos.</em>`
       areaResposta.innerHTML = html
-
-      // ── GRÁFICO: exibe somente f(x) (derivada constante)
       desenhaGrafico({
-        exprs: [
-          x => math.evaluate(exprNormalizada, { x })
-        ],
+        exprs: [x => math.evaluate(exprNormalizada, { x })],
         cores: ["blue"],
         labels: ["f(x)"],
         titulo: "Função (derivada constante)"
       })
-      return
+      return mostrarGrafico()
     }
-    const f1 = x => {
-      try { return math.evaluate(strDeriv1, { x }) }
-      catch { return NaN }
-    }
-    const f2 = x => {
-      try { return math.evaluate(strDeriv2, { x }) }
-      catch { return NaN }
-    }
+    const f1 = x => { try { return math.evaluate(strDeriv1, { x }) } catch { return NaN } }
+    const f2 = x => { try { return math.evaluate(strDeriv2, { x }) } catch { return NaN } }
     const pontosCriticos = []
     const passo = 0.1
     let anterior = f1(-10)
     for (let x = -10 + passo; x <= 10; x += passo) {
       const atual = f1(x)
       if (!isNaN(anterior) && !isNaN(atual)) {
-        if (anterior * atual < 0) {
-          pontosCriticos.push(+(x - passo / 2).toFixed(3))
-        }
-        if (Math.abs(atual) < 1e-6) {
-          pontosCriticos.push(+x.toFixed(3))
-        }
+        if (anterior * atual < 0) pontosCriticos.push(+(x - passo / 2).toFixed(3))
+        if (Math.abs(atual) < 1e-6) pontosCriticos.push(+x.toFixed(3))
       }
       anterior = atual
     }
@@ -158,29 +161,20 @@ function derivada(expr) {
       html += `<strong>Pontos críticos encontrados (aprox.):</strong><br>`
       pontosCriticos.forEach(xc => {
         const valSegunda = f2(xc)
-        let tipo
-        if (isNaN(valSegunda)) {
-          tipo = "Não foi possível avaliar f″ neste ponto"
-        } else if (valSegunda > 0) {
-          tipo = "Mínimo local"
-        } else if (valSegunda < 0) {
-          tipo = "Máximo local"
-        } else {
-          tipo = "Ponto de inflexão (f″=0)"
-        }
-        let valFx
+        let tipo = ""
+        if (isNaN(valSegunda)) tipo = "Não foi possível avaliar f″ neste ponto"
+        else if (valSegunda > 0) tipo = "Mínimo local"
+        else if (valSegunda < 0) tipo = "Máximo local"
+        else tipo = "Ponto de inflexão (f″=0)"
+        let valFx = "N/D"
         try {
           valFx = math.evaluate(exprNormalizada, { x: xc })
           valFx = +valFx.toFixed(3)
-        } catch {
-          valFx = "N/D"
-        }
+        } catch {}
         html += `x = ${xc}, f(x) ≈ ${valFx}, <em>${tipo}</em><br>`
       })
     }
     areaResposta.innerHTML = html
-
-    // ── GRÁFICO: exibe f(x), f′(x) e f″(x)
     desenhaGrafico({
       exprs: [
         x => math.evaluate(exprNormalizada, { x }),
@@ -191,9 +185,8 @@ function derivada(expr) {
       labels: ["f(x)", "f′(x)", "f″(x)"],
       titulo: "Função e Derivadas"
     })
-
+    mostrarGrafico()
   } catch (e) {
-    const areaResposta = document.getElementById("resultado")
     areaResposta.innerHTML = "Erro ao calcular a derivada. Verifique a sintaxe da função"
     console.error("Erro ao calcular a derivada", e)
   }
@@ -208,14 +201,7 @@ function integralIndefinida(expr) {
       <strong>f(x) = ${exprNormalizada}</strong><br>
       ∫f(x)dx = ${resultadoAlgeb} + C
     `
-    // ── GRÁFICO: exibe f(x) e sua primitiva
-    const primitiva = x => {
-      try {
-        return math.evaluate(resultadoAlgeb, { x })
-      } catch {
-        return NaN
-      }
-    }
+    const primitiva = x => { try { return math.evaluate(resultadoAlgeb, { x }) } catch { return NaN } }
     const fGraf = x => math.evaluate(exprNormalizada, { x })
     desenhaGrafico({
       exprs: [fGraf, primitiva],
@@ -223,7 +209,7 @@ function integralIndefinida(expr) {
       labels: ["f(x)", "∫f(x)dx"],
       titulo: "Função e Integral Indefinida"
     })
-
+    mostrarGrafico()
   } catch (e) {
     areaResposta.innerHTML = "Erro ao calcular a integral indefinida. Verifique a sintaxe da função"
     console.error("Erro ao calcular a integral indefinida via Algebrite", e)
@@ -237,9 +223,7 @@ function integralDefinida(expr, a, b, n = 1000) {
     const fCalc = x => math.evaluate(exprNormalizada, { x })
     const h = (b - a) / n
     let soma = 0.5 * (fCalc(a) + fCalc(b))
-    for (let i = 1; i < n; i++) {
-      soma += fCalc(a + i * h)
-    }
+    for (let i = 1; i < n; i++) soma += fCalc(a + i * h)
     const resultado = soma * h
     areaResposta.innerHTML = `
       <strong>f(x) = ${exprNormalizada}</strong><br>
@@ -247,7 +231,6 @@ function integralDefinida(expr, a, b, n = 1000) {
       Intervalo [${a}, ${b}]<br>
       ∫f(x)dx ≈ ${resultado.toFixed(6)}
     `
-    // ── GRÁFICO: exibe f(x) no intervalo dado
     const fGraf = x => math.evaluate(exprNormalizada, { x })
     desenhaGrafico({
       exprs: [fGraf],
@@ -255,7 +238,7 @@ function integralDefinida(expr, a, b, n = 1000) {
       labels: ["f(x)"],
       titulo: `Função no intervalo [${a}, ${b}]`
     })
-
+    mostrarGrafico()
   } catch (e) {
     areaResposta.innerHTML = "Erro ao calcular a integral definida numérica. Verifique a função e os limites"
     console.error("Erro na integral definida", e)
@@ -270,47 +253,33 @@ function desenhaGrafico({ exprs, cores, labels, titulo }) {
   const ySeries = exprs.map(() => [])
   for (let x = -10; x <= 10; x += 0.1) {
     xVals.push(x)
-    exprs.forEach((exprFn, i) => {
+    exprs.forEach((f, i) => {
       try {
-        ySeries[i].push(exprFn(x))
+        ySeries[i].push(f(x))
       } catch {
         ySeries[i].push(NaN)
       }
     })
   }
-
   if (graficoAtual) graficoAtual.destroy()
   graficoAtual = new Chart(ctxGrafico, {
     type: "line",
     data: {
       labels: xVals,
-      datasets: exprs.map((_, i) => ({
+      datasets: ySeries.map((ys, i) => ({
         label: labels[i],
-        data: ySeries[i],
+        data: ys,
         borderColor: cores[i],
         borderWidth: 2,
-        fill: false,
-        pointRadius: 0
+        fill: false
       }))
     },
     options: {
       responsive: true,
-      plugins: {
-        title: {
-          display: true,
-          text: titulo
-        },
-        legend: {
-          position: 'top'
-        }
-      },
+      plugins: { title: { display: true, text: titulo } },
       scales: {
-        x: {
-          title: { display: true, text: "x" }
-        },
-        y: {
-          title: { display: true, text: "y" }
-        }
+        x: { title: { display: true, text: "x" } },
+        y: { title: { display: true, text: "y" } }
       }
     }
   })

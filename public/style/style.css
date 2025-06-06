@@ -29,6 +29,7 @@ body {
   position: relative;
   padding-bottom: 56.25%;
   height: 0;
+  display: none;
 }
 
 .grafico-container canvas {
@@ -37,6 +38,7 @@ body {
   top: 0;
   width: 100% !important;
   height: 100% !important;
+
 }
 
 .calculator-header {
