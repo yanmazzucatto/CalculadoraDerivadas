@@ -9,113 +9,9 @@ document.addEventListener("DOMContentLoaded", () => {
   limitesContainer.classList.add("limites-hidden");
 });
 
-// ========== Parsing de notação de integral ==========
-// Suporta:
-//   integral(expr)                 → indefinida
-//   integral(expr, a, b)          → definida
-//   ainda detecta “∫(...)dx”
-//   suporta “f(expr)dx” como indefinida e “f(expr, a, b)dx” como definida
-function parseIntegralNotation(input) {
-  let s = input.replace(/\u00A0/g, ' ').trim();
-  // 0) Suporte a unicode menos: já será tratado em normalização geral
-  // 1) Notação f(expr)dx ou f(expr,a,b)dx
-  {
-    const reFIndef = /^\s*f\s*\(\s*([^,]+?)\s*\)\s*dx\s*$/i;
-    const m = s.match(reFIndef);
-    if (m) {
-      const expr = m[1].trim();
-      return { tipo: 'indefinida', expr };
-    }
-  }
-  {
-    const reFDef = /^\s*f\s*\(\s*([^,]+?)\s*,\s*([^,]+?)\s*,\s*([^,]+?)\s*\)\s*dx\s*$/i;
-    const m = s.match(reFDef);
-    if (m) {
-      const expr = m[1].trim();
-      const a = m[2].trim();
-      const b = m[3].trim();
-      return { tipo: 'definida', expr, a, b };
-    }
-  }
-  // 2) Notação integral(expr,...) 
-  const reIntegral = /^\s*integral\s*\(\s*([^,]+?)(?:\s*,\s*([^,]+?)\s*,\s*([^,]+?)\s*)?\)\s*$/i;
-  const mInt = s.match(reIntegral);
-  if (mInt) {
-    const expr = mInt[1].trim();
-    const a = mInt[2] ? mInt[2].trim() : null;
-    const b = mInt[3] ? mInt[3].trim() : null;
-    if (a !== null && b !== null) {
-      return { tipo: 'definida', expr, a, b };
-    } else {
-      return { tipo: 'indefinida', expr };
-    }
-  }
-  // 3) Símbolo “∫”
-  if (!s.includes('∫')) return null;
-  s = s.replace(/_/g, '').trim();
-  let rest = s.slice(s.indexOf('∫') + 1).trim();
-  rest = rest.replace(/d\s*[xX]\s*$/i, '').trim();
-  rest = rest.replace(/π/g, "pi");
-  const re1 = /^([^\s\^]+)\s*\^\s*([^\s\^]+)\s*(.*)$/;
-  const m1 = rest.match(re1);
-  if (m1) {
-    const a = m1[1].trim();
-    const b = m1[2].trim();
-    const expr = m1[3].trim();
-    if (expr) return { tipo: 'definida', expr, a, b };
-  }
-  const re2 = /^([^\s]+)\s+([^\s]+)\s+(.*)$/;
-  const m2 = rest.match(re2);
-  if (m2) {
-    const a = m2[1].trim();
-    const b = m2[2].trim();
-    const expr = m2[3].trim();
-    if (expr) return { tipo: 'definida', expr, a, b };
-  }
-  const expr = rest.trim();
-  if (expr) return { tipo: 'indefinida', expr };
-  return null;
-}
-
-// handleInput: tenta parse de integral e chama integralDefinida/indefinida
-function handleInput() {
-  const inputFuncao = document.getElementById("funcao").value.trim();
-  const parsed = parseIntegralNotation(inputFuncao);
-  if (parsed) {
-    if (parsed.tipo === 'definida') {
-      const expr = parsed.expr;
-      const exprNorm = normalizaFuncao(expr);
-      const aNorm = normalizaFuncao(parsed.a);
-      const bNorm = normalizaFuncao(parsed.b);
-      console.log("parseIntegralNotation: integral definida:", exprNorm, "limites:", aNorm, bNorm);
-      try {
-        const a_val = math.evaluate(aNorm);
-        const b_val = math.evaluate(bNorm);
-        if (!isNaN(a_val) && !isNaN(b_val)) {
-          integralDefinida(expr, a_val, b_val);
-        } else {
-          throw new Error("Limites não numéricos");
-        }
-      } catch (e) {
-        console.error("Erro ao avaliar limites da integral:", parsed.a, parsed.b, e);
-        document.getElementById("resultado").innerHTML = "Limites inválidos para integral definida.";
-      }
-    } else {
-      const expr = parsed.expr;
-      console.log("parseIntegralNotation: integral indefinida:", expr);
-      if (validaFuncao(expr, /*fromParse=*/true)) {
-        integralIndefinida(expr);
-      }
-    }
-    return true;
-  }
-  return false;
-}
-
 // Clique: derivada
 btnDerivada.addEventListener("click", () => {
   limitesContainer.classList.add("limites-hidden");
-  if (handleInput()) return;
   const inputFuncao = document.getElementById("funcao").value;
   if (validaFuncao(inputFuncao)) {
     const { valor } = separaFuncao(inputFuncao);
@@ -123,10 +19,9 @@ btnDerivada.addEventListener("click", () => {
   }
 });
 
-// Clique: integral indefinida (botão)
+// Clique: integral indefinida
 btnIntegralIndefinida.addEventListener("click", () => {
   limitesContainer.classList.add("limites-hidden");
-  if (handleInput()) return;
   const inputFuncao = document.getElementById("funcao").value;
   if (validaFuncao(inputFuncao)) {
     const { valor } = separaFuncao(inputFuncao);
@@ -134,20 +29,19 @@ btnIntegralIndefinida.addEventListener("click", () => {
   }
 });
 
-// Clique: integral definida (botão)
+// Clique: integral definida
 btnIntegralDefinida.addEventListener("click", () => {
-  if (handleInput()) return;
   limitesContainer.classList.remove("limites-hidden");
   const inputFuncao = document.getElementById("funcao").value;
-  if (validaFuncao(inputFuncao)) {
-    const { valor } = separaFuncao(inputFuncao);
-    const a_val = parseFloat(document.getElementById("limite-a").value);
-    const b_val = parseFloat(document.getElementById("limite-b").value);
-    if (!isNaN(a_val) && !isNaN(b_val)) {
-      integralDefinida(valor, a_val, b_val);
-    } else {
-      document.getElementById("resultado").innerHTML = "Limites inválidos para integral definida.";
-    }
+  const valor = separaFuncao(inputFuncao).valor;
+  const a_val = parseFloat(document.getElementById("limite-a").value);
+  const b_val = parseFloat(document.getElementById("limite-b").value);
+  if (
+    validaFuncao(inputFuncao) &&
+    !isNaN(a_val) &&
+    !isNaN(b_val)
+  ) {
+    integralDefinida(valor, a_val, b_val);
   }
 });
 
@@ -184,47 +78,46 @@ const supMap = {
 function normalizaFuncao(funcao) {
   let f = funcao;
 
-  // 1) Converter unicode menos “−” em ASCII “-”
-  f = f.replace(/−/g, "-");
+  // 0) Remover espaços não-breaking ou outros espaços estranhos, normalizar espaços simples
+  //    Substitui qualquer whitespace unicode por espaço normal, depois converte múltiplos em um:
+  f = f.replace(/\u00A0/g, ' ')           // non-breaking space
+       .replace(/\s+/g, ' ')               // vários espaços em um
+       .trim();
 
-  // 2) Converter π para pi
-  f = f.replace(/π/g, "pi");
-
-  // 3) Normalizar espaços
-  f = f.replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
-
-  // 4) Vírgula decimal: "0,71" → "0.71"
+  // 1) Vírgula decimal: "0,71" → "0.71"
   f = f.replace(/(\d),(\d)/g, "$1.$2");
 
-  // 5) Inserir * entre número e variável: "2x" → "2*x"
-  f = f.replace(/(\d)(?=[*]*x)/g, "$1*");
+  // 2) Inserir * entre número e variável: "2x" → "2*x", mas sem afetar caso já haja "*"
+  //    Usamos lookahead para x, X ou outras variáveis? Focamos em x: 
+  f = f.replace(/(\d)(?=[*]*x)/g, "$1*"); // se houver 2x ou 2*x, o "*x" já tem; esta regex apenas insere antes de x
 
-  // 6) Interpretar x seguido de dígito como expoente: x2 → x^2
-  f = f.replace(/x(\d+)/g, (match, digits) => `x^${digits}`);
-
-  // 7) Expoentes Unicode em variáveis: x², x³, etc.
+  // 3) Converter expoentes Unicode em variáveis: x², x³, x¹⁰ etc.
   f = f.replace(/x([⁰¹²³⁴⁵⁶⁷⁸⁹]+)/g, (match, supers) => {
     const digits = supers.split('').map(ch => supMap[ch] || '').join('');
     return `x^${digits}`;
   });
 
-  // 8) Expoentes Unicode em constantes ou subexpressões:
+  // 4) Converter expoentes Unicode sobre constantes ou subexpressões:
+  //    - Primeiro parênteses seguidos de superscrito: (expr)² -> (expr)^2
   f = f.replace(/\(([^)]+)\)([⁰¹²³⁴⁵⁶⁷⁸⁹]+)/g, (match, base, supers) => {
     const digits = supers.split('').map(ch => supMap[ch] || '').join('');
     return `(${base})^${digits}`;
   });
+  //    - Depois números seguidos de superscrito: 0.71² -> (0.71)^2
   f = f.replace(/(\d+(\.\d+)?)([⁰¹²³⁴⁵⁶⁷⁸⁹]+)/g, (match, base, _, supers) => {
     const digits = supers.split('').map(ch => supMap[ch] || '').join('');
     return `(${base})^${digits}`;
   });
 
-  // 9) Funções em notação portuguesa
+  // 5) Funções em notação portuguesa: "sen(" → "sin(", "tg(" → "tan(", "ln(" → "log("
   f = f.replace(/sen\(/gi, "sin(")
        .replace(/tg\(/gi, "tan(")
        .replace(/ln\(/gi, "log(");
 
-  // 10) Converter e^expr para exp(expr)
+  // 6) Converter e^expr para exp(expr)
+  //    Captura e^alfa onde alfa é dígito, variável, ou parentetizado simples
   f = f.replace(/(^|[^A-Za-z0-9_])e\^(\(?[^\s+\-*/^()]+\)?)/g, (match, pfx, expr) => {
+    // remove parênteses extras em expr para evitar exp((...))
     const inner = expr.replace(/^\(|\)$/g, "");
     return `${pfx}exp(${inner})`;
   });
@@ -232,8 +125,7 @@ function normalizaFuncao(funcao) {
   return f;
 }
 
-// Ajuste em validaFuncao: se for notação de integral, não faz math.parse direto
-function validaFuncao(inputFuncao, fromParse = false) {
+function validaFuncao(inputFuncao) {
   const { valor } = separaFuncao(inputFuncao);
   const areaResposta = document.getElementById("resultado");
   if (!valor) {
@@ -241,14 +133,10 @@ function validaFuncao(inputFuncao, fromParse = false) {
     esconderGrafico();
     return false;
   }
-  // Se for notação de integral e chamado antes de cálculo, aceitar
-  if (!fromParse && parseIntegralNotation(inputFuncao)) {
-    // Não tenta math.parse em "∫..." ou "f(...)dx" ou "integral(...)" aqui
-    return true;
-  }
   try {
     const valorNormalizado = normalizaFuncao(valor);
     console.log("Expr normalizada:", valorNormalizado);
+    // Testa parse pelo Math.js
     math.parse(valorNormalizado);
     areaResposta.innerHTML = "";
     return true;
@@ -268,50 +156,45 @@ function esconderGrafico() {
   graficoContainer.style.display = 'none';
 }
 
-// Fallback linear
-function encontraRaizesLineares(strDeriv1) {
-  try {
-    const b = math.evaluate(strDeriv1, { x: 0 });
-    const aPlusb = math.evaluate(strDeriv1, { x: 1 });
-    const a = aPlusb - b;
-    if (a !== 0) {
-      const raiz = -b / a;
-      return [raiz];
-    }
-  } catch (_) {}
-  return [];
-}
-
 function derivada(expr) {
   const areaResposta = document.getElementById("resultado");
   try {
     const exprNormalizada = normalizaFuncao(expr);
+    // opcional: log para debug
     console.log("derivada: expr normalizada:", exprNormalizada);
+
     const node1 = math.parse(exprNormalizada);
     const derivada1 = math.derivative(node1, "x");
     const derivada1simp = math.simplify(derivada1);
     const derivada2 = math.derivative(derivada1, "x");
     const derivada2simp = math.simplify(derivada2);
+
     const strDeriv1 = derivada1simp.toString().trim();
     const strDeriv2 = derivada2simp.toString().trim();
+
     let html = `
       <strong>f(x) = ${exprNormalizada}</strong><br>
       f′(x) = ${strDeriv1}<br>
       f″(x) = ${strDeriv2}<br>
     `;
-    // pontos críticos
+
+    // Encontrar raízes de f'(x)=0 simbolicamente via Algebrite
     let pontosCriticos = [];
     try {
+      // 1) Tenta polinômio: roots
       let solRaw = Algebrite.run(`roots(${strDeriv1})`);
       if (solRaw && solRaw.startsWith("[")) {
-        solRaw.slice(1, -1).split(",").forEach(s => {
+        const solList = solRaw.slice(1, -1).split(",");
+        solList.forEach(s => {
           const num = parseFloat(s);
           if (!isNaN(num)) pontosCriticos.push(num);
         });
       } else {
+        // 2) Tenta solve para casos gerais
         solRaw = Algebrite.run(`solve(${strDeriv1}, x)`);
         if (solRaw && solRaw.startsWith("[")) {
-          solRaw.slice(1, -1).split(",").forEach(s => {
+          const solList = solRaw.slice(1, -1).split(",");
+          solList.forEach(s => {
             const num = parseFloat(s);
             if (!isNaN(num)) pontosCriticos.push(num);
           });
@@ -320,22 +203,25 @@ function derivada(expr) {
     } catch (eSol) {
       console.warn("Falha solução simbólica de pontos críticos:", eSol);
     }
-    if (pontosCriticos.length === 0) {
-      const lin = encontraRaizesLineares(strDeriv1);
-      if (lin.length > 0) pontosCriticos = lin;
-    }
+
+    // Remove duplicatas aproximadas
     pontosCriticos = pontosCriticos
       .map(x => +x.toFixed(6))
       .filter((v, i, arr) => arr.indexOf(v) === i);
+
     if (pontosCriticos.length === 0) {
       html += `<em>Nenhum ponto crítico simbólico encontrado.</em><br>`;
     } else {
       html += `<strong>Pontos críticos encontrados:</strong><br>`;
       pontosCriticos.forEach(xc => {
+        // Classificar com segunda derivada
         let tipo = "";
         let valSegunda;
-        try { valSegunda = math.evaluate(strDeriv2, { x: xc }); }
-        catch { valSegunda = NaN; }
+        try {
+          valSegunda = math.evaluate(strDeriv2, { x: xc });
+        } catch {
+          valSegunda = NaN;
+        }
         if (isNaN(valSegunda)) {
           tipo = "Não foi possível avaliar f″ neste ponto";
         } else if (valSegunda > 0) {
@@ -353,19 +239,28 @@ function derivada(expr) {
         html += `x = ${xc}, f(x) ≈ ${valFx}, <em>${tipo}</em><br>`;
       });
     }
+
     areaResposta.innerHTML = html;
-    // plot
+
+    // Plotar função, derivada e segunda derivada em intervalo [-10,10]
     desenhaGrafico({
       exprs: [
         x => math.evaluate(exprNormalizada, { x }),
-        x => { try { return math.evaluate(strDeriv1, { x }); } catch { return NaN; } },
-        x => { try { return math.evaluate(strDeriv2, { x }); } catch { return NaN; } }
+        x => {
+          try { return math.evaluate(strDeriv1, { x }); }
+          catch { return NaN; }
+        },
+        x => {
+          try { return math.evaluate(strDeriv2, { x }); }
+          catch { return NaN; }
+        }
       ],
       cores: ["blue", "green", "red"],
       labels: ["f(x)", "f′(x)", "f″(x)"],
       titulo: "Função e Derivadas"
     });
     mostrarGrafico();
+
   } catch (e) {
     console.error("Erro ao calcular a derivada:", e);
     areaResposta.innerHTML = "Erro ao calcular a derivada. Verifique a sintaxe da função";
@@ -377,23 +272,13 @@ function integralIndefinida(expr) {
   try {
     const exprNormalizada = normalizaFuncao(expr);
     console.log("integralIndefinida: expr normalizada:", exprNormalizada);
-    // Caso especial 1/x
-    if (/^1\/x$/.test(exprNormalizada)) {
-      areaResposta.innerHTML = `<strong>f(x) = ${exprNormalizada}</strong><br>∫f(x)dx = ln|x| + C`;
-      desenhaGrafico({
-        exprs: [x => math.evaluate(exprNormalizada, { x })],
-        cores: ["blue"],
-        labels: ["f(x)=1/x"],
-        titulo: "Função 1/x"
-      });
-      mostrarGrafico();
-      return;
-    }
+
     const resultadoAlgeb = Algebrite.run(`integral(${exprNormalizada}, x)`);
     areaResposta.innerHTML = `
       <strong>f(x) = ${exprNormalizada}</strong><br>
       ∫f(x)dx = ${resultadoAlgeb} + C
     `;
+    // Plot da função e primitiva
     const primitiva = x => { try { return math.evaluate(resultadoAlgeb, { x }); } catch { return NaN; } };
     const fGraf = x => math.evaluate(exprNormalizada, { x });
     desenhaGrafico({
@@ -414,6 +299,7 @@ function integralDefinida(expr, a, b, n = 1000) {
   try {
     const exprNormalizada = normalizaFuncao(expr);
     console.log("integralDefinida: expr normalizada:", exprNormalizada, "intervalo:", a, b);
+
     const fCalc = x => math.evaluate(exprNormalizada, { x });
     const h = (b - a) / n;
     let soma = 0.5 * (fCalc(a) + fCalc(b));
@@ -423,8 +309,9 @@ function integralDefinida(expr, a, b, n = 1000) {
       <strong>f(x) = ${exprNormalizada}</strong><br>
       <strong>Integral definida (Trapézios):</strong><br>
       Intervalo [${a}, ${b}]<br>
-      ∫f(x)dx ≈ ${isNaN(resultado) ? 'NaN (problema de domínio)' : resultado.toFixed(6)}
+      ∫f(x)dx ≈ ${resultado.toFixed(6)}
     `;
+    // Plot apenas da função no intervalo
     const fGraf = x => math.evaluate(exprNormalizada, { x });
     desenhaGrafico({
       exprs: [fGraf],
@@ -435,7 +322,7 @@ function integralDefinida(expr, a, b, n = 1000) {
     mostrarGrafico();
   } catch (e) {
     console.error("Erro na integral definida:", e);
-    document.getElementById("resultado").innerHTML = "Erro ao calcular a integral definida numérica. Verifique a função e os limites";
+    areaResposta.innerHTML = "Erro ao calcular a integral definida numérica. Verifique a função e os limites";
   }
 }
 
@@ -445,6 +332,7 @@ let graficoAtual = null;
 function desenhaGrafico({ exprs, cores, labels, titulo }) {
   const xVals = [];
   const ySeries = exprs.map(() => []);
+  // Plot padrão em [-10,10] com passo 0.1
   for (let x = -10; x <= 10; x += 0.1) {
     xVals.push(x);
     exprs.forEach((f, i) => {

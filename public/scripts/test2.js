@@ -14,11 +14,12 @@ document.addEventListener("DOMContentLoaded", () => {
 //   integral(expr)                 → indefinida
 //   integral(expr, a, b)          → definida
 //   ainda detecta “∫(...)dx”
-//   suporta “f(expr)dx” como indefinida e “f(expr, a, b)dx” como definida
+//   nova: suporta “f(expr)dx” como indefinida e “f(expr, a, b)dx” como definida
 function parseIntegralNotation(input) {
   let s = input.replace(/\u00A0/g, ' ').trim();
-  // 0) Suporte a unicode menos: já será tratado em normalização geral
-  // 1) Notação f(expr)dx ou f(expr,a,b)dx
+
+  // 0) Notação f(expr)dx ou f(expr,a,b)dx
+  // Indefinida: f(expr)dx
   {
     const reFIndef = /^\s*f\s*\(\s*([^,]+?)\s*\)\s*dx\s*$/i;
     const m = s.match(reFIndef);
@@ -27,6 +28,7 @@ function parseIntegralNotation(input) {
       return { tipo: 'indefinida', expr };
     }
   }
+  // Definida: f(expr, a, b)dx
   {
     const reFDef = /^\s*f\s*\(\s*([^,]+?)\s*,\s*([^,]+?)\s*,\s*([^,]+?)\s*\)\s*dx\s*$/i;
     const m = s.match(reFDef);
@@ -37,7 +39,8 @@ function parseIntegralNotation(input) {
       return { tipo: 'definida', expr, a, b };
     }
   }
-  // 2) Notação integral(expr,...) 
+
+  // 1) Verificar forma “integral(...)”
   const reIntegral = /^\s*integral\s*\(\s*([^,]+?)(?:\s*,\s*([^,]+?)\s*,\s*([^,]+?)\s*)?\)\s*$/i;
   const mInt = s.match(reIntegral);
   if (mInt) {
@@ -50,30 +53,42 @@ function parseIntegralNotation(input) {
       return { tipo: 'indefinida', expr };
     }
   }
-  // 3) Símbolo “∫”
+
+  // 2) Se não for “integral(...)” nem “f(...)dx”, verificar símbolo “∫”
   if (!s.includes('∫')) return null;
-  s = s.replace(/_/g, '').trim();
+  s = s.replace(/_/g, '').trim(); // remove subscrito underscore
   let rest = s.slice(s.indexOf('∫') + 1).trim();
+  // Remover “dx” ou “d x” final
   rest = rest.replace(/d\s*[xX]\s*$/i, '').trim();
+  // Converter “π” para “pi”
   rest = rest.replace(/π/g, "pi");
+  // Tentar extrair limites na forma a^b
   const re1 = /^([^\s\^]+)\s*\^\s*([^\s\^]+)\s*(.*)$/;
   const m1 = rest.match(re1);
   if (m1) {
     const a = m1[1].trim();
     const b = m1[2].trim();
     const expr = m1[3].trim();
-    if (expr) return { tipo: 'definida', expr, a, b };
+    if (expr) {
+      return { tipo: 'definida', expr, a, b };
+    }
   }
+  // Tentar extrair limites na forma “a b expr”
   const re2 = /^([^\s]+)\s+([^\s]+)\s+(.*)$/;
   const m2 = rest.match(re2);
   if (m2) {
     const a = m2[1].trim();
     const b = m2[2].trim();
     const expr = m2[3].trim();
-    if (expr) return { tipo: 'definida', expr, a, b };
+    if (expr) {
+      return { tipo: 'definida', expr, a, b };
+    }
   }
+  // Senão, indefinida: rest é expr
   const expr = rest.trim();
-  if (expr) return { tipo: 'indefinida', expr };
+  if (expr) {
+    return { tipo: 'indefinida', expr };
+  }
   return null;
 }
 
@@ -103,7 +118,7 @@ function handleInput() {
     } else {
       const expr = parsed.expr;
       console.log("parseIntegralNotation: integral indefinida:", expr);
-      if (validaFuncao(expr, /*fromParse=*/true)) {
+      if (validaFuncao(expr)) {
         integralIndefinida(expr);
       }
     }
@@ -184,31 +199,31 @@ const supMap = {
 function normalizaFuncao(funcao) {
   let f = funcao;
 
-  // 1) Converter unicode menos “−” em ASCII “-”
-  f = f.replace(/−/g, "-");
-
-  // 2) Converter π para pi
+  // converter π para pi
   f = f.replace(/π/g, "pi");
 
-  // 3) Normalizar espaços
-  f = f.replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
+  // Normalizar espaços
+  f = f.replace(/\u00A0/g, ' ')
+       .replace(/\s+/g, ' ')
+       .trim();
 
-  // 4) Vírgula decimal: "0,71" → "0.71"
+  // Vírgula decimal: "0,71" → "0.71"
   f = f.replace(/(\d),(\d)/g, "$1.$2");
 
-  // 5) Inserir * entre número e variável: "2x" → "2*x"
+  // Inserir * entre número e variável: "2x" → "2*x"
   f = f.replace(/(\d)(?=[*]*x)/g, "$1*");
 
-  // 6) Interpretar x seguido de dígito como expoente: x2 → x^2
+  // Interpretar x seguido de dígito como expoente: x2 → x^2
+  // Faz antes de lidar com expoentes Unicode
   f = f.replace(/x(\d+)/g, (match, digits) => `x^${digits}`);
 
-  // 7) Expoentes Unicode em variáveis: x², x³, etc.
+  // Expoentes Unicode em variáveis: x², x³, etc.
   f = f.replace(/x([⁰¹²³⁴⁵⁶⁷⁸⁹]+)/g, (match, supers) => {
     const digits = supers.split('').map(ch => supMap[ch] || '').join('');
     return `x^${digits}`;
   });
 
-  // 8) Expoentes Unicode em constantes ou subexpressões:
+  // Expoentes Unicode em constantes ou subexpressões:
   f = f.replace(/\(([^)]+)\)([⁰¹²³⁴⁵⁶⁷⁸⁹]+)/g, (match, base, supers) => {
     const digits = supers.split('').map(ch => supMap[ch] || '').join('');
     return `(${base})^${digits}`;
@@ -218,12 +233,12 @@ function normalizaFuncao(funcao) {
     return `(${base})^${digits}`;
   });
 
-  // 9) Funções em notação portuguesa
+  // Funções em notação portuguesa
   f = f.replace(/sen\(/gi, "sin(")
        .replace(/tg\(/gi, "tan(")
        .replace(/ln\(/gi, "log(");
 
-  // 10) Converter e^expr para exp(expr)
+  // Converter e^expr para exp(expr)
   f = f.replace(/(^|[^A-Za-z0-9_])e\^(\(?[^\s+\-*/^()]+\)?)/g, (match, pfx, expr) => {
     const inner = expr.replace(/^\(|\)$/g, "");
     return `${pfx}exp(${inner})`;
@@ -232,19 +247,13 @@ function normalizaFuncao(funcao) {
   return f;
 }
 
-// Ajuste em validaFuncao: se for notação de integral, não faz math.parse direto
-function validaFuncao(inputFuncao, fromParse = false) {
+function validaFuncao(inputFuncao) {
   const { valor } = separaFuncao(inputFuncao);
   const areaResposta = document.getElementById("resultado");
   if (!valor) {
     limpaFuncao();
     esconderGrafico();
     return false;
-  }
-  // Se for notação de integral e chamado antes de cálculo, aceitar
-  if (!fromParse && parseIntegralNotation(inputFuncao)) {
-    // Não tenta math.parse em "∫..." ou "f(...)dx" ou "integral(...)" aqui
-    return true;
   }
   try {
     const valorNormalizado = normalizaFuncao(valor);
