@@ -15,9 +15,26 @@ document.addEventListener("DOMContentLoaded", () => {
 //   integral(expr, a, b)          → definida
 //   ainda detecta “∫(...)dx”
 //   suporta “f(expr)dx” como indefinida e “f(expr, a, b)dx” como definida
+//   e também detecta sufixo “dx” simples: “expr dx” ou “exprdx”
+//   e strip de “f = exprdx”
 function parseIntegralNotation(input) {
   let s = input.replace(/\u00A0/g, ' ').trim();
-  // 0) Suporte a unicode menos: já será tratado em normalização geral
+  // Se começar com “f =” ou “f=”, remover prefixo
+  s = s.replace(/^\s*f\s*=\s*/i, "").trim();
+
+  // 0) Sufixo “dx” simples: “expr dx” ou “exprdx”
+  // Deve vir sem parênteses: ex: "x2exdx" ou "x^2 e^x dx"
+  {
+    // regex que captura tudo antes de dx final
+    const m = s.match(/^(.*?)(?:\s*)dx\s*$/i);
+    if (m) {
+      const exprRaw = m[1].trim();
+      if (exprRaw) {
+        return { tipo: 'indefinida', expr: exprRaw };
+      }
+    }
+  }
+
   // 1) Notação f(expr)dx ou f(expr,a,b)dx
   {
     const reFIndef = /^\s*f\s*\(\s*([^,]+?)\s*\)\s*dx\s*$/i;
@@ -38,42 +55,59 @@ function parseIntegralNotation(input) {
     }
   }
   // 2) Notação integral(expr,...) 
-  const reIntegral = /^\s*integral\s*\(\s*([^,]+?)(?:\s*,\s*([^,]+?)\s*,\s*([^,]+?)\s*)?\)\s*$/i;
-  const mInt = s.match(reIntegral);
-  if (mInt) {
-    const expr = mInt[1].trim();
-    const a = mInt[2] ? mInt[2].trim() : null;
-    const b = mInt[3] ? mInt[3].trim() : null;
-    if (a !== null && b !== null) {
-      return { tipo: 'definida', expr, a, b };
-    } else {
-      return { tipo: 'indefinida', expr };
+  {
+    const reIntegral = /^\s*integral\s*\(\s*([^,]+?)(?:\s*,\s*([^,]+?)\s*,\s*([^,]+?)\s*)?\)\s*$/i;
+    const mInt = s.match(reIntegral);
+    if (mInt) {
+      const expr = mInt[1].trim();
+      const a = mInt[2] ? mInt[2].trim() : null;
+      const b = mInt[3] ? mInt[3].trim() : null;
+      if (a !== null && b !== null) {
+        return { tipo: 'definida', expr, a, b };
+      } else {
+        return { tipo: 'indefinida', expr };
+      }
     }
   }
   // 3) Símbolo “∫”
-  if (!s.includes('∫')) return null;
-  s = s.replace(/_/g, '').trim();
-  let rest = s.slice(s.indexOf('∫') + 1).trim();
-  rest = rest.replace(/d\s*[xX]\s*$/i, '').trim();
-  rest = rest.replace(/π/g, "pi");
-  const re1 = /^([^\s\^]+)\s*\^\s*([^\s\^]+)\s*(.*)$/;
-  const m1 = rest.match(re1);
-  if (m1) {
-    const a = m1[1].trim();
-    const b = m1[2].trim();
-    const expr = m1[3].trim();
-    if (expr) return { tipo: 'definida', expr, a, b };
+  if (s.includes('∫')) {
+    s = s.replace(/_/g, '').trim();
+    let rest = s.slice(s.indexOf('∫') + 1).trim();
+    rest = rest.replace(/d\s*[xX]\s*$/i, '').trim();
+    // converter π para pi
+    rest = rest.replace(/π/g, "pi");
+    // tentar limites a^b
+    {
+      const re1 = /^([^\s\^]+)\s*\^\s*([^\s\^]+)\s*(.*)$/;
+      const m1 = rest.match(re1);
+      if (m1) {
+        const a = m1[1].trim();
+        const b = m1[2].trim();
+        const expr = m1[3].trim();
+        if (expr) {
+          return { tipo: 'definida', expr, a, b };
+        }
+      }
+    }
+    // tentar limites forma “a b expr”
+    {
+      const re2 = /^([^\s]+)\s+([^\s]+)\s+(.*)$/;
+      const m2 = rest.match(re2);
+      if (m2) {
+        const a = m2[1].trim();
+        const b = m2[2].trim();
+        const expr = m2[3].trim();
+        if (expr) {
+          return { tipo: 'definida', expr, a, b };
+        }
+      }
+    }
+    // indefinida
+    const expr = rest.trim();
+    if (expr) {
+      return { tipo: 'indefinida', expr };
+    }
   }
-  const re2 = /^([^\s]+)\s+([^\s]+)\s+(.*)$/;
-  const m2 = rest.match(re2);
-  if (m2) {
-    const a = m2[1].trim();
-    const b = m2[2].trim();
-    const expr = m2[3].trim();
-    if (expr) return { tipo: 'definida', expr, a, b };
-  }
-  const expr = rest.trim();
-  if (expr) return { tipo: 'indefinida', expr };
   return null;
 }
 
@@ -196,8 +230,9 @@ function normalizaFuncao(funcao) {
   // 4) Vírgula decimal: "0,71" → "0.71"
   f = f.replace(/(\d),(\d)/g, "$1.$2");
 
-  // 5) Inserir * entre número e variável: "2x" → "2*x"
-  f = f.replace(/(\d)(?=[*]*x)/g, "$1*");
+  // 5) Inserir * entre número e variável ou entre fechamento de parêntese/variável e letra ou “(”
+  //    Ex.: "2x" → "2*x"; "x2" será tratado abaixo; "x sin(x)" → "x*sin(x)"; "(x+1)sin(x)" → "(x+1)*sin(x)"
+  f = f.replace(/([0-9A-Za-z_\)\]])(?=\s*[A-Za-z_(])/g, "$1*");
 
   // 6) Interpretar x seguido de dígito como expoente: x2 → x^2
   f = f.replace(/x(\d+)/g, (match, digits) => `x^${digits}`);
@@ -241,9 +276,8 @@ function validaFuncao(inputFuncao, fromParse = false) {
     esconderGrafico();
     return false;
   }
-  // Se for notação de integral e chamado antes de cálculo, aceitar
+  // Se for notação de integral (parseIntegralNotation retorna objeto), aceita
   if (!fromParse && parseIntegralNotation(inputFuncao)) {
-    // Não tenta math.parse em "∫..." ou "f(...)dx" ou "integral(...)" aqui
     return true;
   }
   try {
@@ -268,7 +302,7 @@ function esconderGrafico() {
   graficoContainer.style.display = 'none';
 }
 
-// Fallback linear
+// Fallback linear para pontos críticos
 function encontraRaizesLineares(strDeriv1) {
   try {
     const b = math.evaluate(strDeriv1, { x: 0 });
@@ -389,11 +423,13 @@ function integralIndefinida(expr) {
       mostrarGrafico();
       return;
     }
+    // Usa Algebrite para integral simbólica
     const resultadoAlgeb = Algebrite.run(`integral(${exprNormalizada}, x)`);
     areaResposta.innerHTML = `
       <strong>f(x) = ${exprNormalizada}</strong><br>
       ∫f(x)dx = ${resultadoAlgeb} + C
     `;
+    // plot de f e primitiva (quando possível)
     const primitiva = x => { try { return math.evaluate(resultadoAlgeb, { x }); } catch { return NaN; } };
     const fGraf = x => math.evaluate(exprNormalizada, { x });
     desenhaGrafico({
@@ -442,10 +478,10 @@ function integralDefinida(expr, a, b, n = 1000) {
 const ctxGrafico = document.getElementById("grafico").getContext("2d");
 let graficoAtual = null;
 
-function desenhaGrafico({ exprs, cores, labels, titulo }) {
+function desenhaGrafico({ exprs, cores, labels, titulo, passo=0.1, xMin=-10, xMax=10 }) {
   const xVals = [];
   const ySeries = exprs.map(() => []);
-  for (let x = -10; x <= 10; x += 0.1) {
+  for (let x = xMin; x <= xMax; x += passo) {
     xVals.push(x);
     exprs.forEach((f, i) => {
       try {
@@ -470,6 +506,7 @@ function desenhaGrafico({ exprs, cores, labels, titulo }) {
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       plugins: { title: { display: true, text: titulo } },
       scales: {
         x: { title: { display: true, text: "x" } },
